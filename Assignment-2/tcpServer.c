@@ -9,22 +9,33 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define PORT 8080
 #define BUFFER_SIZE 1024
-#define MAX_CLIENTS 100
 
 void *acceptClients(void *arg);
 void *receiveMessages(void *clientSock);
 void signalHandler(int sig);
 void sendMessages();
 
-int clientSockets[MAX_CLIENTS];
+int maxClients;
+int *clientSockets;
+pthread_t *clientThreads;
 int clientCount = 0;
 pthread_mutex_t clientMutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_t clientThreads[MAX_CLIENTS];
 int serverSocket;
 
-int main() {
+int main(int argc, char *argv[]) {
+  if (argc != 4) {
+    printf("Usage: %s <IP> <PORT> <MAX_CLIENTS>\n", argv[0]);
+    return -1;
+  }
+
+  char *ip = argv[1];
+  int port = atoi(argv[2]);
+  maxClients = atoi(argv[3]);
+
+  clientSockets = malloc(maxClients * sizeof(int));
+  clientThreads = malloc(maxClients * sizeof(pthread_t));
+
   struct sockaddr_in serverAddress;
   signal(SIGINT, signalHandler);
   pthread_t acceptThread;
@@ -38,17 +49,17 @@ int main() {
 
   memset(&serverAddress, '\0', sizeof(serverAddress));
   serverAddress.sin_family = AF_INET;
-  serverAddress.sin_port = htons(PORT);
-  serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
+  serverAddress.sin_port = htons(port);
+  serverAddress.sin_addr.s_addr = inet_addr(ip);
 
   if (bind(serverSocket, (struct sockaddr *)&serverAddress,
            sizeof(serverAddress)) < 0) {
     perror("[-] Bind error\n");
     exit(EXIT_FAILURE);
   }
-  printf("[+] Binding successful to port: %d\n", PORT);
+  printf("[+] Binding successful to port: %d\n", port);
 
-  if (listen(serverSocket, 10) == 0) {
+  if (listen(serverSocket, maxClients) == 0) {
     printf("[+] Listening...\n");
   } else {
     perror("[-] Error while listening\n");
@@ -64,6 +75,9 @@ int main() {
   pthread_join(acceptThread, NULL);
 
   close(serverSocket);
+  free(clientSockets);
+  free(clientThreads);
+
   return 0;
 }
 
@@ -152,6 +166,9 @@ void signalHandler(int sig) {
     close(clientSockets[i]);
   }
   pthread_mutex_unlock(&clientMutex);
+
+  free(clientSockets);
+  free(clientThreads);
 
   close(serverSocket);
   exit(0);

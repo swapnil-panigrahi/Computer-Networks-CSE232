@@ -58,7 +58,15 @@ void *fetchMessages(void *args) {
   exit(0);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+  if (argc != 3) {
+    printf("Usage: %s <IP> <PORT>\n", argv[0]);
+    return -1;
+  }
+
+  char *serverIP = argv[1];
+  int port = atoi(argv[2]);
+
   int ret;
   struct sockaddr_in serverAddress;
   char buffer[BUFFER_SIZE];
@@ -74,8 +82,8 @@ int main() {
 
   memset(&serverAddress, '\0', sizeof(serverAddress));
   serverAddress.sin_family = AF_INET;
-  serverAddress.sin_port = htons(PORT);
-  serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
+  serverAddress.sin_port = htons(port);
+  serverAddress.sin_addr.s_addr = inet_addr(serverIP);
 
   ret = connect(clientSocket, (struct sockaddr *)&serverAddress,
                 sizeof(serverAddress));
