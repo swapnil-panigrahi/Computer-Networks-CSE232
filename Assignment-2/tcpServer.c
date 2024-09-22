@@ -1,4 +1,6 @@
 #include <arpa/inet.h>
+#include <ctype.h>
+#include <dirent.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <signal.h>
@@ -22,6 +24,65 @@ pthread_t *clientThreads;
 int clientCount = 0;
 pthread_mutex_t clientMutex = PTHREAD_MUTEX_INITIALIZER;
 int serverSocket;
+
+struct dirent *entry;
+struct ProcessInfo {
+  char name[256];
+  int pid;
+  long utime;
+  long stime;
+} processes[1024];
+
+int compareCPUUsage(const void *a, const void *b) {
+  const struct ProcessInfo *procA = (struct ProcessInfo *)a;
+  const struct ProcessInfo *procB = (struct ProcessInfo *)b;
+  long cpuTimeA = procA->utime + procA->stime;
+  long cpuTimeB = procB->utime + procB->stime;
+  return (cpuTimeB > cpuTimeA) - (cpuTimeB < cpuTimeA);
+}
+
+void fetchCPUProcesses(char *outputBuffer) {
+  DIR *dir;
+  struct dirent *entry;
+  struct ProcessInfo processes[1024];
+  int processCount = 0;
+
+  if ((dir = opendir("/proc")) != NULL) {
+    while ((entry = readdir(dir)) != NULL) {
+      if (isdigit(entry->d_name[0])) {
+        int pid = atoi(entry->d_name);
+        char statPath[1024];
+        sprintf(statPath, "/proc/%d/stat", pid);
+
+        FILE *statFile = fopen(statPath, "r");
+        if (statFile) {
+          long utime, stime;
+          char comm[256];
+          fscanf(statFile,
+                 "%*d (%[^)]) %*c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu "
+                 "%lu %lu",
+                 comm, &utime, &stime);
+          strcpy(processes[processCount].name, comm);
+          processes[processCount].pid = pid;
+          processes[processCount].utime = utime;
+          processes[processCount].stime = stime;
+          processCount++;
+          fclose(statFile);
+        }
+      }
+    }
+    closedir(dir);
+  }
+
+  qsort(processes, processCount, sizeof(struct ProcessInfo), compareCPUUsage);
+
+  snprintf(outputBuffer, BUFFER_SIZE,
+           "Top 2 Processes:\n1. %s (PID: %d) CPU Time: %ld\n2. %s (PID: %d) "
+           "CPU Time: %ld\n",
+           processes[0].name, processes[0].pid,
+           processes[0].utime + processes[0].stime, processes[1].name,
+           processes[1].pid, processes[1].utime + processes[1].stime);
+}
 
 int main(int argc, char *argv[]) {
   if (argc != 4) {
@@ -128,13 +189,19 @@ void *receiveMessages(void *clientSock) {
       break;
     }
 
-    printf("Client: %s\n", buffer);
+    if (strncmp(buffer, "GET_CPU_USAGE", 13) == 0) {
+      printf("[+] Client requested CPU usage info\n");
+      char cpuData[BUFFER_SIZE];
+      fetchCPUProcesses(cpuData);
+      send(sock, cpuData, strlen(cpuData), 0);
+    } else {
+      printf("Client: %s\n", buffer);
+    }
   }
 
   pthread_mutex_lock(&clientMutex);
   for (int i = 0; i < clientCount; i++) {
     if (clientSockets[i] == sock) {
-      // Shift remaining clients down
       for (int j = i; j < clientCount - 1; j++) {
         clientSockets[j] = clientSockets[j + 1];
         clientThreads[j] = clientThreads[j + 1];
