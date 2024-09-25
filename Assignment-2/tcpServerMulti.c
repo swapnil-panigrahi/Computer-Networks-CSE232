@@ -1,4 +1,4 @@
-#include <arpa/inet.h>
+  #include <arpa/inet.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <netinet/in.h>
@@ -195,7 +195,7 @@ void *receiveMessages(void *clientSock) {
       fetchCPUProcesses(cpuData);
       send(sock, cpuData, strlen(cpuData), 0);
     } else {
-      printf("Client: %s\n", buffer);
+      printf("\nClient: %s\n", buffer);
     }
   }
 

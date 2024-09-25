@@ -41,13 +41,24 @@ int main(int argc, char *argv[]) {
   }
   printf("[+] Connection established\n");
 
-  strcpy(buffer, "GET_CPU_USAGE");
-  send(clientSocket, buffer, strlen(buffer), 0);
+  int flag=1;
+  while (flag) {
+    char input[BUFFER_SIZE];
+    strcpy(buffer, "GET_CPU_USAGE");
+    send(clientSocket, buffer, strlen(buffer), 0);
 
-  memset(buffer, 0, BUFFER_SIZE);
-  recv(clientSocket, buffer, BUFFER_SIZE, 0);
-  printf("CPU Info: %s\n", buffer);
-
+    memset(buffer, 0, BUFFER_SIZE);
+    recv(clientSocket, buffer, BUFFER_SIZE, 0);
+    printf("CPU Info: %s\n", buffer);
+    if (strncmp(buffer, "SERVER_SHUTDOWN", strlen("SERVER_SHUTDOWN")) == 0) {
+      break;
+    }
+    printf("\nClose connection?(Selecting no will fetch CPU usage again)(y/n):");
+    scanf("%s", input);
+    if (strcmp(input, "y") == 0) {
+      flag=0;
+    }
+  }
   close(clientSocket);
   printf("[+] Connection closed, exiting...\n");
 
