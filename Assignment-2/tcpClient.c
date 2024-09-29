@@ -50,7 +50,7 @@ void *fetchMessages(void *args) {
       break;
     }
 
-    printf("Server: %s\n", buffer);
+    printf("\nServer: %s\n", buffer);
   }
 
   close(clientSocket);
