@@ -1,4 +1,4 @@
-  #include <arpa/inet.h>
+#include <arpa/inet.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <netinet/in.h>
@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <sys/select.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -132,7 +132,7 @@ void *acceptClients() {
   struct sockaddr_in clientAddress;
   socklen_t addrSize;
   int newClientSock;
-  addrSize = sizeof(clientAddress);\
+  addrSize = sizeof(clientAddress);
 
   while (1) {
     newClientSock =
@@ -210,4 +210,3 @@ void signalHandler(int sig) {
   close(serverSocket);
   exit(0);
 }
-
